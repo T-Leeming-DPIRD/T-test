@@ -40,12 +40,37 @@ def test_temperature_and_station_charts_use_metric_colors() -> None:
     )
 
     trend = temperature_trend_chart(data)
-    station = station_weather_chart(data)
+    station = station_weather_chart(data, frost_threshold_c=2.0, heat_threshold_c=35.0)
 
     assert trend.data[0].line.color == COLORS["max_temp"]
     assert trend.data[1].line.color == COLORS["min_temp"]
     assert station.data[0].marker.color == COLORS["rain"]
     assert station.layout.yaxis2.title.text == "Temperature (°C)"
+
+
+def test_station_weather_chart_marks_heat_and_frost_events() -> None:
+    data = pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=5),
+            "rainfall_mm": [0.0, 1.0, 2.0, 3.0, 4.0],
+            "max_temp_c": [35.0, 40.0, float("nan"), 34.0, 36.0],
+            "min_temp_c": [3.0, 0.0, float("nan"), 1.0, 2.0],
+        }
+    )
+
+    figure = station_weather_chart(data, frost_threshold_c=2.0, heat_threshold_c=35.0)
+    heat, frost = figure.data[3:]
+
+    assert heat.name == "Heat day"
+    assert heat.marker.color == COLORS["heat_event"]
+    assert len(heat.x) == 3
+    assert "Maximum: %{y:.1f} °C" in heat.hovertemplate
+    assert "Event: Heat day" in heat.hovertemplate
+    assert frost.name == "Frost night"
+    assert frost.marker.color == COLORS["frost_event"]
+    assert len(frost.x) == 2
+    assert "Minimum: %{y:.1f} °C" in frost.hovertemplate
+    assert "Event: Frost night" in frost.hovertemplate
 
 
 def test_gdd_and_map_have_expected_trace_types_and_sizing() -> None:
